@@ -1,4 +1,6 @@
 
+let timerInterval = null;
+
 const initPopup = async (activeWorkItemId = null) => {
   let activeWorkItem = null;
   let recentWorkItems = [];
@@ -34,7 +36,9 @@ const initPopup = async (activeWorkItemId = null) => {
   else {
     document.getElementsByClassName('no-active-timers')[0].style.display = 'none';
 
-    showActiveTimer(activeWorkItem, youtrack_url);
+    timerInterval = setInterval(() => {
+      showActiveTimer(activeWorkItem, youtrack_url);
+    }, 1000);
 
     await chrome.runtime.sendMessage({ timer_status: 'on' });
   }
@@ -58,6 +62,8 @@ const stopButtonClick = async (event) => {
 
   // Stop any active timers.
   await YouTrackAPI.workItems.stopActive(description);
+
+  clearInterval(timerInterval);
 
   await chrome.runtime.sendMessage({ timer_status: 'off' });
 
@@ -90,6 +96,8 @@ const showActiveTimer = (activeWorkItem, youtrack_url) => {
   const formattedHours = hours < 10 ? '0' + hours : hours;
   const minutes = Math.floor((total % (1000 * 60 * 60)) / (1000 * 60));
   const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+  const seconds = Math.floor((total % (1000 * 60)) / 1000);
+  const formattedSeconds = seconds < 10 ? '0' + seconds : seconds;
 
   document.getElementsByClassName('issue-id')[0].innerHTML = activeWorkItem.issue.idReadable;
   document.getElementsByClassName('issue-id')[0].href = document.getElementsByClassName('issue-id')[0].href
@@ -97,7 +105,7 @@ const showActiveTimer = (activeWorkItem, youtrack_url) => {
       .replace('_issue_id_', activeWorkItem.issue.idReadable);
   document.getElementsByClassName('issue-summary')[0].innerHTML = activeWorkItem.issue.summary;
   document.getElementsByClassName('project')[0].innerHTML = activeWorkItem.issue.project.name;
-  document.getElementsByClassName('time')[0].innerHTML = formattedHours + ':' + formattedMinutes;
+  document.getElementsByClassName('time')[0].innerHTML = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 
   document.getElementsByClassName('active-timer')[0].style.display = 'block';
 
@@ -117,8 +125,10 @@ const updateTrackedTodayTime = (todaysWorkItems, activeWorkItem) => {
   const formattedHours = hours < 10 ? '0' + hours : hours;
   const minutes = Math.floor((total % (1000 * 60 * 60)) / (1000 * 60));
   const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+  const seconds = Math.floor((total % (1000 * 60)) / 1000);
+  const formattedSeconds = seconds < 10 ? '0' + seconds : seconds;
 
-  document.getElementsByClassName('today-time')[0].innerHTML = formattedHours + ':' + formattedMinutes;
+  document.getElementsByClassName('today-time')[0].innerHTML = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 
   // @todo: show todays text in icon as badge.
   const badgeText = hours > 0 ? hours + 'h' : '';
@@ -165,5 +175,10 @@ const showFavoriteIssues = (favoriteIssues, recentWorkItems) => {
 window.addEventListener("DOMContentLoaded", (event) => {
   // Initialize popup when opened.
   initPopup();
+});
+
+window.addEventListener("unload", (event) => {
+  // Cleanup when popup is closed.
+  clearInterval(timerInterval);
 });
 
